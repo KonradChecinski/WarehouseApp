@@ -1,59 +1,90 @@
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import {Link, Tabs} from 'expo-router';
+import {Pressable, View, Image, Text} from 'react-native';
 
 import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import {useColorScheme} from '@/components/useColorScheme';
+import {useClientOnlyValue} from '@/components/useClientOnlyValue';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
+    name: React.ComponentProps<typeof FontAwesome>['name'];
+    color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+    return <FontAwesome size={28} style={{marginBottom: -3}} {...props} />;
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+    const colorScheme = useColorScheme();
 
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-        }}
-      />
-    </Tabs>
-  );
+    const HeaderTitle = ({title}: { title: string }) => {
+        return (
+            <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 20, // odstęp między logo a tekstem
+                width: "100%",
+            }}>
+                <Image
+                    style={{
+                        width: 80,
+                        height: 30,
+                        resizeMode: 'contain'
+                    }}
+                    source={require('../../assets/images/logo.png')}
+                />
+                <Text style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: '#ffffff', // biały tekst
+                }}>
+                    {title}
+                </Text>
+            </View>
+        );
+    };
+
+
+    return (
+        <Tabs
+            initialRouteName={'stan'}
+            screenOptions={{
+                // tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+                // Disable the static render of the header on web
+                // to prevent a hydration error in React Navigation v6.
+                headerShown: useClientOnlyValue(false, true),
+                // Dodajemy style dla nagłówka
+                headerStyle: {
+                    backgroundColor: '#0a1f3c', // ciemny granatowy
+                },
+                headerTintColor: '#ffffff', // biały tekst w nagłówku
+                // Style dla dolnego paska
+                tabBarStyle: {
+                    backgroundColor: '#0a1f3c', // ciemny granatowy
+                    borderTopColor: '#0a1f3c', // usunięcie linii oddzielającej
+                },
+                tabBarActiveTintColor: '#12a0ff', // kolor logo dla aktywnej zakładki
+                tabBarInactiveTintColor: '#ffffff', // jaśniejszy niebieski dla nieaktywnych
+            }}>
+
+            <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Dokument',
+                    headerTitle: () => <HeaderTitle title="Dokument"/>,
+                    tabBarIcon: ({color}) => <TabBarIcon name="file-text-o" color={color}/>,
+                }}
+            />
+            <Tabs.Screen
+                name="stan"
+                options={{
+                    title: 'Stan',
+                    headerTitle: () => <HeaderTitle title="Stan"/>,
+                    tabBarIcon: ({color}) => <TabBarIcon name="database" color={color}/>,
+                }}
+            />
+        </Tabs>
+    );
 }

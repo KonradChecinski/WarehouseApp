@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "BelibeWarehouseApp",
-    "slug": "BelibeWarehouseApp",
+    "slug": "belibeapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -32,6 +32,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "cc63ad59-fd09-4254-b033-dd72b047f955"
+      }
+    },
+    "owner": "darnok"
   }
 }

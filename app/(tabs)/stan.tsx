@@ -4,64 +4,18 @@ import {Avatar, Button, Card, Divider, FAB, IconButton, List, TextInput} from "r
 import {useCallback, useRef, useState} from "react";
 import {useFocusEffect} from "expo-router";
 import validbarcode from "barcode-validator";
+import {useSettings} from '@/components/SettingsContext';
+
 
 export default function StockScreen() {
+    const {settings} = useSettings();
+
+    const [data, setData] = useState(null);
+
     const [text, setText] = useState("");
     const refEanInput = useRef(null);
     const [showKeyboard, setShowKeyboard] = useState(false);
 
-    const quantities = [
-        {
-            name: "Belibe",
-            quantity: 5,
-            type: "supplier",
-        },
-        {
-            name: "Interprint",
-            quantity: 3,
-            type: "supplier",
-        },
-        {
-            name: "Sora",
-            quantity: 1,
-            type: "supplier",
-        },
-        {
-            name: "Miraggio",
-            quantity: 0,
-            type: "supplier",
-        },
-        {
-            name: "Ruda Śląska",
-            quantity: 2,
-            type: "store",
-        },
-        {
-            name: "Tychy",
-            quantity: 1,
-            type: "store",
-        },
-        {
-            name: "Dąbrowa Górnicza",
-            quantity: 4,
-            type: "store",
-        },
-        {
-            name: "Błonie",
-            quantity: 2,
-            type: "store",
-        },
-        {
-            name: "Inne1",
-            quantity: 10,
-            type: "other",
-        },
-        {
-            name: "Inne2",
-            quantity: 20,
-            type: "other",
-        },
-    ]
 
     // const LeftContent = props => <Avatar.Icon {...props} icon="folder"/>
 
@@ -93,34 +47,48 @@ export default function StockScreen() {
 
     // Funkcja do wysyłania zapytania
     const handleSubmit = async () => {
-        if (!text.trim()) return; // nie wysyłaj pustego tekstu
-        if (text.length === 13) return;
-        if (!validbarcode(text)) return;
-        
-        console.log(text);
-        return;
+        console.log("handleSubmit");
+        const barcode = text.trim();
+
+        if (!barcode) return; // nie wysyłaj pustego tekstu
+        if (barcode.length !== 13) return;
+        if (!validbarcode(barcode)) return;
+
+
+        console.log(barcode);
+        // return;
         try {
-            const response = await fetch('https://twoj-adres-serwera/api/endpoint', {
-                method: 'POST',
+            const searchParams = new URLSearchParams({
+                barcode: barcode
+            });
+
+
+            const response = await fetch(`${settings.serverAddress}/api/warehouse/barcode-searching?${searchParams}`, {
+                method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${settings.apiKey}`,
                 },
-                body: JSON.stringify({
-                    ean: text.trim()
-                })
+                // body: JSON.stringify({
+                //     ean: text.trim()
+                // })
             });
 
             if (!response.ok) {
+                console.log(response.status, await response.json());
+
                 throw new Error('Błąd sieciowy');
             }
 
             const data = await response.json();
             // Tutaj możesz obsłużyć odpowiedź, np. zaktualizować stan
             console.log(data);
+            setData(data);
 
             // Opcjonalnie: wyczyść pole po udanym zapytaniu
-            setText('');
-            handleClearAndFocus();
+            // setText('');
+            // handleClearAndFocus();
         } catch (error) {
             console.error('Błąd:', error);
             // Tutaj możesz dodać obsługę błędów, np. wyświetlić alert
@@ -133,11 +101,16 @@ export default function StockScreen() {
         return (
             <List.Section>
                 <List.Accordion
-                    title={title + ": " + quantities.filter(item => item.type === type)
-                        .reduce((sum, item) => sum + item.quantity, 0)}
+                    title={title + ": " +
+                        (data ?
+                                data?.stock[type].reduce((sum, item) => sum + item.quantity, 0)
+                                :
+                                "0"
+                        )
+                    }
 
                 >
-                    {quantities.filter(item => item.type === type).map((item, index) => (
+                    {data?.stock[type].map((item, index) => (
                         <List.Item
                             key={item.name + index}
                             title={() => (
@@ -209,10 +182,10 @@ export default function StockScreen() {
                         <Card style={styles.card}>
                             <Card.Content>
                                 {/*stan dostawcy*/}
-                                <AccordionSection title={"Dostawcy"} type={"supplier"}/>
+                                <AccordionSection title={"Dostawcy"} type={"suppliers"}/>
                                 <Divider/>
                                 {/*stan sklepy*/}
-                                <AccordionSection title={"Sklepy"} type={"store"}/>
+                                <AccordionSection title={"Sklepy"} type={"shops"}/>
                                 <Divider/>
                                 {/*stan inne*/}
                                 <AccordionSection title={"Inne"} type={"other"}/>

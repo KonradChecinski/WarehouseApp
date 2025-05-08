@@ -5,8 +5,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import {useEffect} from 'react';
 import 'react-native-reanimated';
 
+import {SettingsProvider} from '@/components/SettingsContext';
+import {SettingsModal} from '@/app/modal/SettingsModal';
+
+
 import {useColorScheme} from '@/components/useColorScheme';
-import {PaperProvider} from "react-native-paper";
+import {PaperProvider, Portal} from "react-native-paper";
 
 import {
     DarkTheme as NavigationDarkTheme,
@@ -117,8 +121,8 @@ const {LightTheme, DarkTheme} = adaptNavigationTheme({
     reactNavigationDark: NavigationDarkTheme,
 });
 
-const CombinedDefaultTheme = merge(extendLightTheme, LightTheme);
-const CombinedDarkTheme = merge(extendDarkTheme, DarkTheme);
+const CombinedDefaultTheme = merge(LightTheme, extendLightTheme);
+const CombinedDarkTheme = merge(DarkTheme, extendDarkTheme);
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -161,13 +165,21 @@ function RootLayoutNav() {
     const colorScheme = useColorScheme();
 
     return (
+
         <PaperProvider theme={colorScheme === 'dark' ? CombinedDarkTheme : CombinedDefaultTheme}>
-            <ThemeProvider value={colorScheme === 'dark' ? CombinedDarkTheme : CombinedDefaultTheme}>
-                <Stack>
-                    <Stack.Screen name="(tabs)" options={{headerShown: false}}/>
-                    <Stack.Screen name="modal" options={{presentation: 'modal'}}/>
-                </Stack>
-            </ThemeProvider>
+            <Portal.Host>
+                <ThemeProvider value={colorScheme === 'dark' ? CombinedDarkTheme : CombinedDefaultTheme}>
+                    <SettingsProvider>
+                        <Stack>
+                            <Stack.Screen name="(tabs)" options={{headerShown: false}}/>
+                            {/*<Stack.Screen name="modal" options={{presentation: 'modal'}}/>*/}
+                        </Stack>
+                        <SettingsModal/>
+                    </SettingsProvider>
+                </ThemeProvider>
+            </Portal.Host>
         </PaperProvider>
+
+
     );
 }

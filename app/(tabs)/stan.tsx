@@ -1,6 +1,18 @@
 import {Keyboard, Pressable, ScrollView, StyleSheet, TouchableWithoutFeedback} from 'react-native';
 import {Text, View} from '@/components/Themed';
-import {Avatar, Button, Card, Divider, FAB, IconButton, List, TextInput} from "react-native-paper";
+import {
+    ActivityIndicator,
+    Avatar,
+    Button,
+    Card,
+    Dialog,
+    Divider,
+    FAB,
+    IconButton,
+    List, MD2Colors,
+    Portal,
+    TextInput
+} from "react-native-paper";
 import {useCallback, useRef, useState} from "react";
 import {useFocusEffect} from "expo-router";
 import validbarcode from "barcode-validator";
@@ -16,7 +28,7 @@ export default function StockScreen() {
     const refEanInput = useRef(null);
     const [showKeyboard, setShowKeyboard] = useState(false);
 
-
+    const [visibleLoadingDialog, setVisibleLoadingDialog] = useState(false);
     // const LeftContent = props => <Avatar.Icon {...props} icon="folder"/>
 
     useFocusEffect(
@@ -61,7 +73,7 @@ export default function StockScreen() {
             const searchParams = new URLSearchParams({
                 barcode: barcode
             });
-
+            setVisibleLoadingDialog(true)
 
             const response = await fetch(`${settings.serverAddress}/api/warehouse/barcode-searching?${searchParams}`, {
                 method: 'GET',
@@ -92,6 +104,9 @@ export default function StockScreen() {
         } catch (error) {
             console.error('Błąd:', error);
             // Tutaj możesz dodać obsługę błędów, np. wyświetlić alert
+        }
+        finally {
+            setVisibleLoadingDialog(false);
         }
     };
 
@@ -172,9 +187,24 @@ export default function StockScreen() {
                         <Divider/>
 
                         <Card style={styles.card}>
-                            <Card.Title title="Product"/>
+                            <Card.Title title={data?
+                                data.product.product.symbol
+                                :
+                                "Produkt"
+                            }/>
                             <Card.Content>
-
+                                <View>
+                                    <Avatar.Image
+                                        size={80}
+                                        source={{
+                                            uri: `${settings.serverAddress}/images/basic/`+ data?.product.images.filter(image => image.main===1)[0].slug,
+                                        }}
+                                        style={{backgroundColor: MD2Colors.grey300}}
+                                    />
+                                </View>
+                                <Text>Model: {data?.product.model.symbol}</Text>
+                                <Text>Kolor: {data?.product.color.shortcut} - {data?.product.color.name}</Text>
+                                <Text>Rozmiar: {data?.product.product.size}</Text>
                             </Card.Content>
                         </Card>
 
@@ -201,6 +231,13 @@ export default function StockScreen() {
                 style={styles.fab}
                 onPress={handleClearAndFocus}
             />
+            <Portal>
+                <Dialog visible={visibleLoadingDialog} style={styles.loadingDialog}>
+                    <Dialog.Content>
+                        <ActivityIndicator animating={true} size={'large'}  color={'#0a1f3c'}/>
+                    </Dialog.Content>
+                </Dialog>
+            </Portal>
         </View>
     );
 }
@@ -266,5 +303,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
-
+    loadingDialog:{
+        width: 100,
+        alignSelf: 'center', // centrowanie w poziomie
+        justifyContent: 'center', // centrowanie w pionie
+        position: 'absolute',
+        top: '50%', // pozycjonowanie na środku ekranu
+        left: '50%', // pozycjonowanie na środku ekranu
+        transform: [
+            { translateX: -50 }, // przesunięcie o połowę szerokości
+            { translateY: -50 }  // przesunięcie o połowę wysokości
+        ]
+    },
 });

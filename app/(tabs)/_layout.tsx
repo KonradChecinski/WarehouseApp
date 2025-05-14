@@ -8,6 +8,7 @@ import {useColorScheme} from '@/components/useColorScheme';
 import {useClientOnlyValue} from '@/components/useClientOnlyValue';
 import {SettingsProvider, useSettings} from "@/components/SettingsContext";
 import {SettingsModal} from "@/app/modal/SettingsModal";
+import {GestureHandlerRootView} from "react-native-gesture-handler";
 
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/

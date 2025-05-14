@@ -12,6 +12,7 @@ import {SettingsModal} from '@/app/modal/SettingsModal';
 import {useColorScheme} from '@/components/useColorScheme';
 import {PaperProvider, Portal} from "react-native-paper";
 
+
 import {
     DarkTheme as NavigationDarkTheme,
     DefaultTheme as NavigationDefaultTheme,
@@ -23,6 +24,9 @@ import {
     adaptNavigationTheme,
 } from 'react-native-paper';
 import merge from 'deepmerge';
+import {GestureHandlerRootView} from "react-native-gesture-handler";
+import {MaterialIcons} from "@expo/vector-icons";
+import ToastManager from "toastify-react-native";
 
 const extendDarkTheme = {
     ...MD3DarkTheme,
@@ -170,11 +174,25 @@ function RootLayoutNav() {
             <Portal.Host>
                 <ThemeProvider value={colorScheme === 'dark' ? CombinedDarkTheme : CombinedDefaultTheme}>
                     <SettingsProvider>
-                        <Stack>
-                            <Stack.Screen name="(tabs)" options={{headerShown: false}}/>
-                            {/*<Stack.Screen name="modal" options={{presentation: 'modal'}}/>*/}
-                        </Stack>
-                        <SettingsModal/>
+                        <GestureHandlerRootView style={{flex: 1}}>
+                            <Stack>
+                                <Stack.Screen name="(tabs)" options={{headerShown: false}}/>
+                                {/*<Stack.Screen name="modal" options={{presentation: 'modal'}}/>*/}
+                            </Stack>
+                            <SettingsModal/>
+                            <ToastManager
+                                theme={colorScheme === 'dark' ? 'dark' : 'light'}
+                                style={{
+                                    boxShadow: 'none',
+                                    top: -30,
+                                    minHeight: 60
+                                }}
+                                useModal={false}
+                                position="top"
+                            />
+
+                        </GestureHandlerRootView>
+
                     </SettingsProvider>
                 </ThemeProvider>
             </Portal.Host>

@@ -1,4 +1,13 @@
-import {Keyboard, Pressable, ScrollView, StyleSheet, TouchableWithoutFeedback} from 'react-native';
+import {
+    Keyboard,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TouchableWithoutFeedback,
+    Image,
+    TouchableOpacity, Dimensions, Modal as RNModal, KeyboardAvoidingView, Platform
+
+} from 'react-native';
 import {Text, View} from '@/components/Themed';
 import {
     ActivityIndicator,
@@ -7,29 +16,49 @@ import {
     Card,
     Dialog,
     Divider,
-    FAB,
+    FAB, HelperText,
     IconButton,
     List, MD2Colors,
     Portal,
-    TextInput
+    TextInput, Modal
 } from "react-native-paper";
 import {useCallback, useRef, useState} from "react";
 import {useFocusEffect} from "expo-router";
 import validbarcode from "barcode-validator";
 import {useSettings} from '@/components/SettingsContext';
-
+import AwesomeGallery from 'react-native-awesome-gallery';
+import {FetchDataResponse, ProductData} from "@/Interfaces/ProductData";
+import {AccordionSection} from "@/components/AccordionSection";
+import {Toast} from 'toastify-react-native'
 
 export default function StockScreen() {
     const {settings} = useSettings();
 
-    const [data, setData] = useState(null);
+    const [data, setData] = useState<ProductData | null>(null);
 
-    const [text, setText] = useState("");
-    const refEanInput = useRef(null);
+    const [text, setText] = useState<string>("");
+    const refEanInput = useRef<TextInput | null>(null);
     const [showKeyboard, setShowKeyboard] = useState(false);
 
     const [visibleLoadingDialog, setVisibleLoadingDialog] = useState(false);
-    // const LeftContent = props => <Avatar.Icon {...props} icon="folder"/>
+
+
+    const windowWidth = Dimensions.get('window').width;
+    const windowHeight = Dimensions.get('window').height;
+
+
+    const [isGalleryVisible, setIsGalleryVisible] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+// Przygotuj tablicę zdjęć
+    const galleryImages = data?.product?.images
+        ? data.product.images
+            .sort((a, b) => a.order - b.order)
+            .map(img => (
+                `${settings.serverAddress}/images/basic/${img.slug}`
+            ))
+        : [];
+
 
     useFocusEffect(
         useCallback(() => {
@@ -45,6 +74,7 @@ export default function StockScreen() {
 
     const handleClearAndFocus = () => {
         setText(""); // czyścimy tekst
+        setData(null)
         refEanInput.current?.blur(); // najpierw blur
         setTimeout(() => {
             refEanInput.current?.focus(); // fokus po małym opóźnieniu
@@ -57,175 +87,272 @@ export default function StockScreen() {
         setShowKeyboard(false);
     };
 
-    // Funkcja do wysyłania zapytania
-    const handleSubmit = async () => {
-        console.log("handleSubmit");
-        const barcode = text.trim();
 
-        if (!barcode) return; // nie wysyłaj pustego tekstu
-        if (barcode.length !== 13) return;
-        if (!validbarcode(barcode)) return;
+    const fetchProductData = async (barcode: string): Promise<FetchDataResponse<ProductData>> => {
+        const searchParams = new URLSearchParams({barcode});
+        const url = `${settings.serverAddress}/api/warehouse/barcode-searching?${searchParams}`;
 
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`,
+        };
 
-        console.log(barcode);
-        // return;
-        try {
-            const searchParams = new URLSearchParams({
-                barcode: barcode
-            });
-            setVisibleLoadingDialog(true)
+        const response = await fetch(url, {
+            method: 'GET',
+            headers,
+        });
 
-            const response = await fetch(`${settings.serverAddress}/api/warehouse/barcode-searching?${searchParams}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${settings.apiKey}`,
-                },
-                // body: JSON.stringify({
-                //     ean: text.trim()
-                // })
-            });
-
-            if (!response.ok) {
-                console.log(response.status, await response.json());
-
-                throw new Error('Błąd sieciowy');
-            }
-
-            const data = await response.json();
-            // Tutaj możesz obsłużyć odpowiedź, np. zaktualizować stan
-            console.log(data);
-            setData(data);
-
-            // Opcjonalnie: wyczyść pole po udanym zapytaniu
-            // setText('');
-            // handleClearAndFocus();
-        } catch (error) {
-            console.error('Błąd:', error);
-            // Tutaj możesz dodać obsługę błędów, np. wyświetlić alert
+        if (response.status === 401) {
+            return {
+                error: "Niepoprawny klucz API",
+                status: response.status
+            };
         }
-        finally {
-            setVisibleLoadingDialog(false);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            return {
+                error: errorData.error || 'Wystąpił błąd podczas wyszukiwania produktu.',
+                status: response.status
+            };
         }
+
+        const data = await response.json();
+        return {
+            data,
+            status: response.status
+        };
     };
 
+    const handleSubmit = async () => {
+        const barcode = text.trim();
 
-    const AccordionSection = ({title, type}: { title: string, type: string }) => {
+        if (!barcode) return;
 
-        return (
-            <List.Section>
-                <List.Accordion
-                    title={title + ": " +
-                        (data ?
-                                data?.stock[type].reduce((sum, item) => sum + item.quantity, 0)
-                                :
-                                "0"
-                        )
-                    }
+        if (barcode.length !== 13) {
+            Toast.show({
+                type: "error",
+                text1: "Kod EAN musi mieć 13 cyfr",
+                visibilityTime: 5000,
+            });
+            return;
+        }
 
-                >
-                    {data?.stock[type].map((item, index) => (
-                        <List.Item
-                            key={item.name + index}
-                            title={() => (
-                                <View style={styles.listItemContainer}>
-                                    <Text style={styles.itemName}>{item.name}</Text>
-                                    <Text style={styles.itemQuantity}>{item.quantity}</Text>
-                                </View>
-                            )}
-                            style={styles.listItem}
-                        />
-                    ))}
+        if (!validbarcode(barcode)) {
+            Toast.show({
+                type: "error",
+                text1: "Niepoprawny kod EAN",
+                visibilityTime: 5000,
+            });
+            return;
+        }
+        setVisibleLoadingDialog(true);
 
-                </List.Accordion>
-            </List.Section>
-        );
-    }
+        fetchProductData(barcode)
+            .then((response) => {
+                if (response.error) {
+                    Toast.show({
+                        type: "error",
+                        text1: response.error,
+                        visibilityTime: 5000,
+                    });
+                    return;
+                }
+                if (response.data) {
+                    setData(response.data);
+                }
+            })
+            .catch((error) => {
+                console.error('Błąd:', error);
+                Toast.show({
+                    type: "error",
+                    text1: "Wystąpił nieoczekiwany błąd",
+                    visibilityTime: 5000,
+                });
+            })
+            .finally(() => {
+                setVisibleLoadingDialog(false);
+                setText('');
+            });
+    };
 
 
     return (
         <View style={styles.mainContainer}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                                  style={{flex: 1}}
+                                  onTouchStart={handleDismissKeyboard}
+            >
+                <View style={{flex: 1}}>
+                    <View style={styles.inputContainerBlock}>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                ref={refEanInput}
+                                mode={"outlined"}
+                                keyboardType={'numeric'}
+                                value={text}
+                                placeholder={"Zeskanuj/wpisz kod EAN"}
+                                onChangeText={text => setText(text)}
+                                showSoftInputOnFocus={showKeyboard}
+                                style={styles.input}
+                                contextMenuHidden={true}
+                                onSubmitEditing={handleSubmit} // obsługa wciśnięcia Enter
+                                blurOnSubmit={false} // zapobiega utracie fokusu po wciśnięciu Enter
+                                // submitBehavior={""}
+                                returnKeyType="send" // zmienia tekst na przycisku Enter
+                                theme={{roundness: 12}} // zaokrąglenie
+                            />
+                            <IconButton
+                                icon={showKeyboard ? "keyboard" : "keyboard-off"}
+                                onPress={() => {
+                                    refEanInput.current?.blur(); // najpierw odbieramy fokus
+                                    setShowKeyboard(prev => !prev); // przełączamy stan klawiatury
+                                    setTimeout(() => {
+                                        refEanInput.current?.focus(); // ponownie ustawiamy fokus po małym opóźnieniu
+                                    }, 100);
+                                }}
 
-            <TouchableWithoutFeedback onPress={handleDismissKeyboard}>
-                <ScrollView contentContainerStyle={styles.scrollViewContent}>
-
-                    <View style={styles.container}>
-                        <Card style={styles.card} mode={"contained"}>
-                            {/*<Card.Title title="Card Title" subtitle="Card Subtitle" left={LeftContent}/>*/}
-                            <Card.Content>
-                                <View style={styles.inputContainer}>
-
-                                    <TextInput
-                                        label="Podaj kod EAN"
-                                        ref={refEanInput}
-                                        keyboardType={'numeric'}
-                                        value={text}
-                                        onChangeText={text => setText(text)}
-                                        showSoftInputOnFocus={showKeyboard}
-                                        style={styles.input}
-                                        contextMenuHidden={true}
-                                        onSubmitEditing={handleSubmit} // obsługa wciśnięcia Enter
-                                        blurOnSubmit={false} // zapobiega utracie fokusu po wciśnięciu Enter
-                                        returnKeyType="send" // zmienia tekst na przycisku Enter
-                                    />
-
-                                    <IconButton
-                                        icon={showKeyboard ? "keyboard" : "keyboard-off"}
-                                        onPress={() => {
-                                            refEanInput.current?.blur(); // najpierw odbieramy fokus
-                                            setShowKeyboard(prev => !prev); // przełączamy stan klawiatury
-                                            setTimeout(() => {
-                                                refEanInput.current?.focus(); // ponownie ustawiamy fokus po małym opóźnieniu
-                                            }, 100);
-                                        }}
-
-                                    />
-                                </View>
-                            </Card.Content>
-                        </Card>
-                        <Divider/>
-
-                        <Card style={styles.card}>
-                            <Card.Title title={data?
-                                data.product.product.symbol
-                                :
-                                "Produkt"
-                            }/>
-                            <Card.Content>
-                                <View>
-                                    <Avatar.Image
-                                        size={80}
-                                        source={{
-                                            uri: `${settings.serverAddress}/images/basic/`+ data?.product.images.filter(image => image.main===1)[0].slug,
-                                        }}
-                                        style={{backgroundColor: MD2Colors.grey300}}
-                                    />
-                                </View>
-                                <Text>Model: {data?.product.model.symbol}</Text>
-                                <Text>Kolor: {data?.product.color.shortcut} - {data?.product.color.name}</Text>
-                                <Text>Rozmiar: {data?.product.product.size}</Text>
-                            </Card.Content>
-                        </Card>
-
-
-                        <Card style={styles.card}>
-                            <Card.Content>
-                                {/*stan dostawcy*/}
-                                <AccordionSection title={"Dostawcy"} type={"suppliers"}/>
-                                <Divider/>
-                                {/*stan sklepy*/}
-                                <AccordionSection title={"Sklepy"} type={"shops"}/>
-                                <Divider/>
-                                {/*stan inne*/}
-                                <AccordionSection title={"Inne"} type={"other"}/>
-                            </Card.Content>
-                        </Card>
-
-
+                            />
+                        </View>
                     </View>
-                </ScrollView>
-            </TouchableWithoutFeedback>
+                    <ScrollView
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.scrollViewContent}
+                        nestedScrollEnabled={true}
+                        scrollEnabled={true}
+
+                    >
+                        {data &&
+                            (
+                                <View style={styles.container}>
+                                    <Card style={styles.card}>
+                                        <Card.Content>
+                                            <View style={{
+                                                flexDirection: 'row',
+                                                justifyContent: 'flex-start',
+                                                alignItems: 'center',
+                                                gap: 10,
+                                                backgroundColor: "transparent"
+                                            }}>
+                                                <View>
+                                                    <TouchableOpacity
+                                                        onPress={() => {
+                                                            setCurrentImageIndex(0);
+                                                            setIsGalleryVisible(true);
+                                                        }}
+                                                    >
+                                                        <Image
+                                                            source={{
+                                                                uri: data?.product.images?.length > 0
+                                                                    ? `${settings.serverAddress}/images/basic/${data.product.images.find(image => image.order === 0)?.slug || data.product.images[0].slug}`
+                                                                    : `${settings.serverAddress}/images/basic/brak.jpg`
+                                                            }}
+                                                            style={{
+                                                                minWidth: 80,
+                                                                minHeight: 120,
+                                                                backgroundColor: MD2Colors.white,
+                                                                resizeMode: 'contain'
+                                                            }}
+                                                        />
+                                                    </TouchableOpacity>
+
+
+                                                </View>
+                                                <View style={{backgroundColor: "transparent"}}>
+                                                    <Text style={{
+                                                        fontSize: 20,
+                                                        fontWeight: "bold"
+                                                    }}>{data?.product.product.symbol}</Text>
+                                                    <View style={{
+                                                        display: "flex",
+                                                        flexDirection: "row",
+                                                        gap: 5,
+                                                        alignItems: "center",
+                                                        backgroundColor: "transparent"
+                                                    }}>
+                                                        <Text>Model: </Text>
+                                                        <Text style={{
+                                                            fontSize: 18,
+                                                            fontWeight: "bold"
+                                                        }}>{data?.product.model.symbol}</Text>
+                                                    </View>
+                                                    <View style={{
+                                                        display: "flex",
+                                                        flexDirection: "row",
+                                                        gap: 5,
+                                                        alignItems: "center",
+                                                        backgroundColor: "transparent"
+                                                    }}>
+                                                        <Text>Kolor: </Text>
+                                                        <Text style={{
+                                                            fontSize: 18,
+                                                            fontWeight: "bold"
+                                                        }}>{data?.product.color.shortcut}</Text>
+                                                        <Text>-</Text>
+                                                        <Text style={{
+                                                            fontSize: 16,
+                                                            fontWeight: "bold"
+                                                        }}>{data?.product.color.name}</Text>
+                                                    </View>
+                                                    <View style={{
+                                                        display: "flex",
+                                                        flexDirection: "row",
+                                                        gap: 5,
+                                                        alignItems: "center",
+                                                        backgroundColor: "transparent"
+                                                    }}>
+                                                        <Text>Rozmiar: </Text>
+                                                        <Text style={{
+                                                            fontSize: 18,
+                                                            fontWeight: "bold"
+                                                        }}>{data?.product.product.size}</Text>
+                                                    </View>
+                                                    <View style={{
+                                                        display: "flex",
+                                                        flexDirection: "row",
+                                                        gap: 5,
+                                                        alignItems: "center",
+                                                        backgroundColor: "transparent"
+                                                    }}>
+                                                        <Text>Zarezerwowane: </Text>
+                                                        <Text style={{
+                                                            fontSize: 18,
+                                                            fontWeight: "bold"
+                                                        }}>{data?.product.product.quantity - data?.product.product.available}</Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+
+
+                                        </Card.Content>
+                                    </Card>
+                                    <Card style={styles.card}>
+                                        <Card.Content>
+                                            {/*stan dostawcy*/}
+                                            <AccordionSection
+                                                title="Dostawcy"
+                                                type="suppliers"
+                                                data={data}
+                                            />
+                                            <AccordionSection
+                                                title="Sklepy"
+                                                type="shops"
+                                                data={data}
+                                            />
+                                            <AccordionSection
+                                                title="Inne"
+                                                type="other"
+                                                data={data}
+                                            />
+                                        </Card.Content>
+                                    </Card>
+                                </View>
+                            )
+                        }
+                    </ScrollView>
+                </View>
+            </KeyboardAvoidingView>
             <FAB
                 icon="refresh"
                 style={styles.fab}
@@ -234,10 +361,51 @@ export default function StockScreen() {
             <Portal>
                 <Dialog visible={visibleLoadingDialog} style={styles.loadingDialog}>
                     <Dialog.Content>
-                        <ActivityIndicator animating={true} size={'large'}  color={'#0a1f3c'}/>
+                        <ActivityIndicator animating={true} size={'large'} color={'#0a1f3c'}/>
                     </Dialog.Content>
                 </Dialog>
             </Portal>
+
+            <RNModal
+                visible={isGalleryVisible}
+                transparent={true}
+                onRequestClose={() => setIsGalleryVisible(false)}
+            >
+                <View style={{flex: 1, backgroundColor: 'black'}}>
+                    <View style={{
+                        position: 'absolute',
+
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        padding: 20,
+                        zIndex: 1,
+                        backgroundColor: 'transparent',
+                    }}>
+                        <Text style={{color: 'white', fontSize: 16}}>
+                            {currentImageIndex + 1} / {galleryImages.length}
+                        </Text>
+                        <TouchableOpacity onPress={() => setIsGalleryVisible(false)}>
+                            <Text style={{color: 'white', fontSize: 24}}>×</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <AwesomeGallery
+                        // images={galleryImages}
+                        data={galleryImages}
+                        initialIndex={currentImageIndex}
+                        onIndexChange={(index) => setCurrentImageIndex(index)}
+                        onSwipeToClose={() => setIsGalleryVisible(false)}
+                        containerDimensions={{
+                            width: windowWidth,
+                            height: windowHeight
+                        }}
+                    />
+                </View>
+            </RNModal>
+
         </View>
     );
 }
@@ -245,6 +413,9 @@ export default function StockScreen() {
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
+    },
+    scrollView: {
+        flex: 1, // Dodane
     },
     scrollViewContent: {
         flexGrow: 1,
@@ -254,6 +425,8 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'flex-start',
+        gap: 10,
+        marginTop: 10
     },
 
     title: {
@@ -267,12 +440,23 @@ const styles = StyleSheet.create({
     },
     card: {
         width: '90%',
-        marginTop: 10,
-        marginBottom: 10,
+    },
+    inputContainerBlock: {
+        width: '100%',
+        marginTop: -15,
+        paddingTop: 25,
+        paddingEnd: 10,
+        paddingStart: 10,
+        paddingBottom: 10,
+        backgroundColor: '#0a1f3cc0',
+        borderBottomLeftRadius: 12,
+        borderBottomRightRadius: 12,
+        zIndex: 1, // Dodane
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        borderRadius: 12,
     },
     input: {
         flex: 1,
@@ -303,7 +487,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
-    loadingDialog:{
+    loadingDialog: {
         width: 100,
         alignSelf: 'center', // centrowanie w poziomie
         justifyContent: 'center', // centrowanie w pionie
@@ -311,8 +495,43 @@ const styles = StyleSheet.create({
         top: '50%', // pozycjonowanie na środku ekranu
         left: '50%', // pozycjonowanie na środku ekranu
         transform: [
-            { translateX: -50 }, // przesunięcie o połowę szerokości
-            { translateY: -50 }  // przesunięcie o połowę wysokości
+            {translateX: -50}, // przesunięcie o połowę szerokości
+            {translateY: -50}  // przesunięcie o połowę wysokości
         ]
     },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: 'black',
+    },
+    modalHeader: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        padding: 20,
+        zIndex: 1
+    },
+    modalNavigation: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20
+    },
+    modalNavigationButton: {
+        padding: 10
+    },
+    modalCloseButton: {
+        color: 'white',
+        fontSize: 24
+    },
+    modalPageIndicator: {
+        color: 'white',
+        fontSize: 16
+    },
+
 });

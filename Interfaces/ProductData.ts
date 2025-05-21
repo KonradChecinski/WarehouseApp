@@ -23,6 +23,11 @@ export interface ProductPrices {
     laravel_through_key: number;
 }
 
+export interface ProductBarcode {
+    barcode: string;
+    main: boolean
+}
+
 export interface ProductStock {
     suppliers: StockItem[];
     shops: StockItem[];
@@ -48,6 +53,7 @@ export interface ProductData {
             available: number;
             size: string;
             unit: string;
+            barcodes: ProductBarcode[];
         };
         images: ProductImage[];
         prices: ProductPrices;

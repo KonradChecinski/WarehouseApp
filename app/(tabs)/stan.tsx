@@ -20,7 +20,7 @@ import {
     IconButton,
     List, MD2Colors,
     Portal,
-    TextInput, Modal
+    TextInput, Modal, Surface
 } from "react-native-paper";
 import {useCallback, useRef, useState} from "react";
 import {useFocusEffect} from "expo-router";
@@ -30,9 +30,11 @@ import AwesomeGallery from 'react-native-awesome-gallery';
 import {FetchDataResponse, ProductData} from "@/Interfaces/ProductData";
 import {AccordionSection} from "@/components/AccordionSection";
 import {Toast} from 'toastify-react-native'
+import {useColorScheme} from "@/components/useColorScheme";
 
 export default function StockScreen() {
     const {settings} = useSettings();
+    const colorScheme = useColorScheme();
 
     const [data, setData] = useState<ProductData | null>(null);
 
@@ -49,6 +51,8 @@ export default function StockScreen() {
 
     const [isGalleryVisible, setIsGalleryVisible] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const [infoModalVisible, setInfoModalVisible] = useState(false);
 
 // Przygotuj tablicę zdjęć
     const galleryImages = data?.product?.images
@@ -161,6 +165,7 @@ export default function StockScreen() {
                 }
                 if (response.data) {
                     setData(response.data);
+                    console.log(response.data);
                 }
             })
             .catch((error) => {
@@ -233,11 +238,13 @@ export default function StockScreen() {
                                                 justifyContent: 'flex-start',
                                                 alignItems: 'center',
                                                 gap: 10,
-                                                backgroundColor: "transparent"
+                                                backgroundColor: "transparent",
+                                                position: "relative",
                                             }}>
                                                 <View>
                                                     <TouchableOpacity
                                                         onPress={() => {
+                                                            if (galleryImages.length === 0) return;
                                                             setCurrentImageIndex(0);
                                                             setIsGalleryVisible(true);
                                                         }}
@@ -263,7 +270,7 @@ export default function StockScreen() {
                                                     <Text style={{
                                                         fontSize: 20,
                                                         fontWeight: "bold"
-                                                    }}>{data?.product.product.symbol}</Text>
+                                                    }}>{data?.product?.product?.symbol}</Text>
                                                     <View style={{
                                                         display: "flex",
                                                         flexDirection: "row",
@@ -275,7 +282,7 @@ export default function StockScreen() {
                                                         <Text style={{
                                                             fontSize: 18,
                                                             fontWeight: "bold"
-                                                        }}>{data?.product.model.symbol}</Text>
+                                                        }}>{data?.product?.model?.symbol}</Text>
                                                     </View>
                                                     <View style={{
                                                         display: "flex",
@@ -288,12 +295,12 @@ export default function StockScreen() {
                                                         <Text style={{
                                                             fontSize: 18,
                                                             fontWeight: "bold"
-                                                        }}>{data?.product.color.shortcut}</Text>
+                                                        }}>{data?.product?.color?.shortcut}</Text>
                                                         <Text>-</Text>
                                                         <Text style={{
                                                             fontSize: 16,
                                                             fontWeight: "bold"
-                                                        }}>{data?.product.color.name}</Text>
+                                                        }}>{data?.product?.color?.name}</Text>
                                                     </View>
                                                     <View style={{
                                                         display: "flex",
@@ -306,7 +313,7 @@ export default function StockScreen() {
                                                         <Text style={{
                                                             fontSize: 18,
                                                             fontWeight: "bold"
-                                                        }}>{data?.product.product.size}</Text>
+                                                        }}>{data?.product?.product?.size}</Text>
                                                     </View>
                                                     <View style={{
                                                         display: "flex",
@@ -319,8 +326,23 @@ export default function StockScreen() {
                                                         <Text style={{
                                                             fontSize: 18,
                                                             fontWeight: "bold"
-                                                        }}>{data?.product.product.quantity - data?.product.product.available}</Text>
+                                                        }}>{data?.product?.product?.quantity - data?.product?.product?.available}</Text>
                                                     </View>
+                                                </View>
+                                                <View
+                                                    style={{
+                                                        position: "absolute",
+                                                        bottom: -8,
+                                                        right: -8,
+                                                        backgroundColor: "transparent",
+                                                    }}>
+                                                    <IconButton
+                                                        icon="information"
+                                                        size={24}
+                                                        onPress={() => setInfoModalVisible(true)}
+                                                        style={{backgroundColor: "#0a1f3cbf", margin: 0}}
+                                                        iconColor="#fff"
+                                                    />
                                                 </View>
                                             </View>
 
@@ -365,7 +387,149 @@ export default function StockScreen() {
                     </Dialog.Content>
                 </Dialog>
             </Portal>
+            <Portal>
+                <Modal
+                    visible={infoModalVisible}
+                    onDismiss={() => setInfoModalVisible(false)}
+                    contentContainerStyle={{
+                        marginHorizontal: 20,
+                        borderRadius: 20,
+                        position: "relative"
+                    }}
+                >
+                    <IconButton
+                        icon="close"
+                        size={24}
+                        onPress={() => setInfoModalVisible(false)}
+                        style={{
+                            position: 'absolute',
+                            right: 5,
+                            top: 5,
+                            zIndex: 1,
+                        }}
+                        iconColor={colorScheme === 'dark' ? '#ffffff' : '#000000'}
+                    />
+                    {data &&
+                        (
+                            <View
+                                style={{
+                                    backgroundColor: colorScheme === 'dark' ? '#1e1e1e' : '#fafafa',
+                                    padding: 20,
+                                    borderRadius: 20,
+                                }}>
+                                <Text style={{fontSize: 20, fontWeight: 'bold'}}>Informacje o produkcie</Text>
+                                <Text style={{marginTop: 10, fontSize: 15, fontWeight: 'bold'}}>Ceny:</Text>
+                                <Surface elevation={2} style={styles.table}>
+                                    {/* Nagłówek tabeli */}
+                                    <View style={styles.tableRow}>
+                                        <View style={[styles.tableHeader, {flex: 1}]}>
+                                            <Text style={styles.headerText}>Cena</Text>
+                                        </View>
+                                        <View style={[styles.tableHeader, {flex: 1}]}>
+                                            <Text style={styles.headerText}>Netto</Text>
+                                        </View>
+                                        <View style={[styles.tableHeader, {flex: 1}]}>
+                                            <Text style={styles.headerText}>Brutto</Text>
+                                        </View>
+                                    </View>
 
+                                    {/* Wiersze tabeli */}
+                                    <View style={styles.tableRow}>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>Hurtowa</Text>
+                                        </View>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>
+                                                {(data?.product?.prices?.wholesale_net_price / 100).toLocaleString("pl-PL", {
+                                                    style: "currency",
+                                                    currency: data?.product?.prices?.currency
+                                                })}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>
+                                                {(data?.product?.prices?.wholesale_gross_price / 100).toLocaleString("pl-PL", {
+                                                    style: "currency",
+                                                    currency: data?.product?.prices?.currency
+                                                })}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.tableRow}>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>Detaliczna</Text>
+                                        </View>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>
+                                                {(data?.product?.prices?.retail_net_price / 100).toLocaleString("pl-PL", {
+                                                    style: "currency",
+                                                    currency: data?.product?.prices?.currency
+                                                })}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>
+                                                {(data?.product?.prices?.retail_gross_price / 100).toLocaleString("pl-PL", {
+                                                    style: "currency",
+                                                    currency: data?.product?.prices?.currency
+                                                })}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.tableRow}>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>B2C</Text>
+                                        </View>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>
+                                                {(data?.product?.prices?.b2c_net_price / 100).toLocaleString("pl-PL", {
+                                                    style: "currency",
+                                                    currency: data?.product?.prices?.currency
+                                                })}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.tableCell, {flex: 1}]}>
+                                            <Text style={styles.cellText}>
+                                                {(data?.product?.prices?.b2c_gross_price / 100).toLocaleString("pl-PL", {
+                                                    style: "currency",
+                                                    currency: data?.product?.prices?.currency
+                                                })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </Surface>
+
+
+                                <Text style={{marginTop: 10, fontSize: 15, fontWeight: 'bold'}}>Kody kreskowe:</Text>
+                                <Surface elevation={2} style={styles.table}>
+                                    {data?.product?.product?.barcodes.map((barcode, index) => (
+                                        <View style={styles.tableRow} key={barcode.barcode}>
+                                            {barcode.main ?
+                                                (
+                                                    <View style={[styles.tableHeader, {flex: 1}]}>
+                                                        <Text style={styles.headerText}>{barcode.barcode}</Text>
+                                                    </View>
+                                                )
+                                                :
+                                                (
+                                                    <View style={[styles.tableCell, {flex: 1}]}>
+                                                        <Text style={styles.cellText}>{barcode.barcode} </Text>
+                                                    </View>
+                                                )
+                                            }
+                                        </View>
+                                    ))}
+                                </Surface>
+
+                            </View>
+                        )
+                    }
+
+
+                </Modal>
+            </Portal>
             <RNModal
                 visible={isGalleryVisible}
                 transparent={true}
@@ -532,6 +696,37 @@ const styles = StyleSheet.create({
     modalPageIndicator: {
         color: 'white',
         fontSize: 16
+    },
+    table: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        overflow: 'hidden',
+        marginVertical: 10,
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+    },
+    tableHeader: {
+        backgroundColor: '#0a1f3cbf',
+        padding: 10,
+        borderRightWidth: 1,
+        borderRightColor: '#ddd',
+    },
+    tableCell: {
+        padding: 10,
+        borderRightWidth: 1,
+        borderRightColor: '#ddd',
+    },
+    headerText: {
+        fontWeight: 'bold',
+        textAlign: 'center',
+        color: '#ffffff'
+    },
+    cellText: {
+        textAlign: 'center',
     },
 
 });

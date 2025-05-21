@@ -1,9 +1,7 @@
 import {
     Keyboard,
-    Pressable,
     ScrollView,
     StyleSheet,
-    TouchableWithoutFeedback,
     Image,
     TouchableOpacity, Dimensions, Modal as RNModal, KeyboardAvoidingView, Platform
 
@@ -11,14 +9,10 @@ import {
 import {Text, View} from '@/components/Themed';
 import {
     ActivityIndicator,
-    Avatar,
-    Button,
     Card,
     Dialog,
-    Divider,
-    FAB, HelperText,
-    IconButton,
-    List, MD2Colors,
+    FAB,
+    IconButton, MD2Colors,
     Portal,
     TextInput, Modal, Surface
 } from "react-native-paper";

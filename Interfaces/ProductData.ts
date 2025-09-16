@@ -1,7 +1,10 @@
 export interface StockItem {
     symbol: string;
     name: string;
-    quantity: number;
+    quantity: {
+        quantity: number,
+        currently_in_delivery: number
+    };
 }
 
 export interface ProductImage {

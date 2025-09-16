@@ -19,7 +19,8 @@ export const AccordionSection: React.FC<AccordionProps> = ({title, type, data}) 
     const heightAnimation = useSharedValue(0);
 
     const items: Array<StockItem> = data?.stock[type] || [];
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity.quantity, 0);
+    const totalInDelivery = items.reduce((sum, item) => sum + (item.quantity.currently_in_delivery || 0), 0);
 
     const onContentLayout = (event: LayoutChangeEvent) => {
         const {height} = event.nativeEvent.layout;
@@ -70,7 +71,7 @@ export const AccordionSection: React.FC<AccordionProps> = ({title, type, data}) 
                         <View style={styles.titleContainer}>
 
                             <Text style={styles.title}>
-                                {title}: {totalQuantity}
+                                {title}: {totalQuantity} {totalInDelivery != 0 ? "(+" + totalInDelivery + ")" : ""}
                             </Text>
 
                         </View>
@@ -92,7 +93,11 @@ export const AccordionSection: React.FC<AccordionProps> = ({title, type, data}) 
                                 style={styles.itemContainer}
                             >
                                 <Text style={styles.itemName}>{item.symbol} - {item.name}</Text>
-                                <Text style={styles.itemQuantity}>{item.quantity}</Text>
+                                <Text
+                                    style={styles.itemQuantity}>
+                                    {item.quantity.currently_in_delivery != 0 ? "(+" + item.quantity.currently_in_delivery + ") " : ""}
+                                    {item.quantity.quantity}
+                                </Text>
                             </View>
                         ))}
                     </View>

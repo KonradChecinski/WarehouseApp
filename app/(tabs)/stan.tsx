@@ -20,11 +20,12 @@ import {useCallback, useRef, useState} from "react";
 import {useFocusEffect} from "expo-router";
 import validbarcode from "barcode-validator";
 import {useSettings} from '@/components/SettingsContext';
-import AwesomeGallery from 'react-native-awesome-gallery';
+//import AwesomeGallery from 'react-native-awesome-gallery';
 import {FetchDataResponse, ProductData} from "@/Interfaces/ProductData";
 import {AccordionSection} from "@/components/AccordionSection";
 import {Toast} from 'toastify-react-native'
 import {useColorScheme} from "@/components/useColorScheme";
+import Swiper from 'react-native-swiper'
 
 export default function StockScreen() {
     const {settings} = useSettings();
@@ -44,6 +45,7 @@ export default function StockScreen() {
 
 
     const [isGalleryVisible, setIsGalleryVisible] = useState(false);
+    const [galleryKey, setGalleryKey] = useState(0);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -100,7 +102,9 @@ export default function StockScreen() {
             method: 'GET',
             headers,
         });
-
+        // console.log(response);
+        // console.log(response.status);
+        // console.log(await response.json());
         if (response.status === 401) {
             return {
                 error: "Niepoprawny klucz API",
@@ -159,7 +163,7 @@ export default function StockScreen() {
                 }
                 if (response.data) {
                     setData(response.data);
-                    console.log(response.data);
+                    // console.log(response.data);
                 }
             })
             .catch((error) => {
@@ -174,6 +178,15 @@ export default function StockScreen() {
                 setVisibleLoadingDialog(false);
                 setText('');
             });
+    };
+
+
+    const handleCloseGallery = () => {
+        setIsGalleryVisible(false);
+        // Zmień klucz po krótkim opóźnieniu, aby wymusić przeładowanie komponentu
+        setTimeout(() => {
+            setGalleryKey(prev => prev + 1);
+        }, 300);
     };
 
 
@@ -524,45 +537,50 @@ export default function StockScreen() {
 
                 </Modal>
             </Portal>
-            <RNModal
-                visible={isGalleryVisible}
-                transparent={true}
-                onRequestClose={() => setIsGalleryVisible(false)}
-            >
-                <View style={{flex: 1, backgroundColor: 'black'}}>
-                    <View style={{
-                        position: 'absolute',
+            <Portal>
+                <Modal visible={isGalleryVisible}
+                       onDismiss={() => setIsGalleryVisible(false)}
+                       contentContainerStyle={{
+                           // marginHorizontal: 20,
+                           marginVertical: 20,
+                           borderRadius: 20,
+                           position: "relative",
+                           backgroundColor: 'rgba(0,0,0,0.9)', // ciemniejsze tło
+                           flex: 1 // wykorzystanie całej dostępnej przestrzeni
 
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        padding: 20,
-                        zIndex: 1,
-                        backgroundColor: 'transparent',
+                       }}>
+
+
+                    <View style={{backgroundColor: "#ffffff", flex: 1}}>
+                        <Swiper style={styles2.wrapper} showsButtons={true} loop={false}>
+                            {galleryImages.map((image, index) => (
+                                <View style={styles2.slide1} key={image}>
+                                    <Image
+                                        source={{uri: image}}
+                                        // source={image}
+                                        style={{
+                                            width: windowWidth,
+                                            height: windowHeight,
+                                            resizeMode: 'contain',
+                                        }}
+                                    />
+                                </View>
+                            ))}
+                        </Swiper>
+                    </View>
+                    <View style={{
+                        position: "absolute",
+                        top: 5,
+                        right: 5,
+
                     }}>
-                        <Text style={{color: 'white', fontSize: 16}}>
-                            {currentImageIndex + 1} / {galleryImages.length}
-                        </Text>
                         <TouchableOpacity onPress={() => setIsGalleryVisible(false)}>
-                            <Text style={{color: 'white', fontSize: 24}}>×</Text>
+                            <Text style={{color: 'black', fontSize: 24}}>×</Text>
                         </TouchableOpacity>
                     </View>
+                </Modal>
+            </Portal>
 
-                    <AwesomeGallery
-                        // images={galleryImages}
-                        data={galleryImages}
-                        initialIndex={currentImageIndex}
-                        onIndexChange={(index) => setCurrentImageIndex(index)}
-                        onSwipeToClose={() => setIsGalleryVisible(false)}
-                        containerDimensions={{
-                            width: windowWidth,
-                            height: windowHeight
-                        }}
-                    />
-                </View>
-            </RNModal>
 
         </View>
     );
@@ -724,3 +742,16 @@ const styles = StyleSheet.create({
     },
 
 });
+const styles2 = StyleSheet.create({
+    wrapper: {},
+    slide1: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    text: {
+        color: '#fff',
+        fontSize: 30,
+        fontWeight: 'bold'
+    }
+})
